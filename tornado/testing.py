@@ -48,6 +48,12 @@ else:
     from cStringIO import StringIO
 
 try:
+    import asyncio
+except ImportError:
+    asyncio = None
+
+
+try:
     from collections.abc import Generator as GeneratorType  # type: ignore
 except ImportError:
     from types import GeneratorType  # type: ignore
@@ -382,6 +388,9 @@ class AsyncHTTPTestCase(AsyncTestCase):
 
         If the path begins with http:// or https://, it will be treated as a
         full URL and will be fetched as-is.
+
+        .. versionchanged:: 5.0
+           Added support for absolute URLs.
         """
         if path.lower().startswith(('http://', 'https://')):
             self.http_client.fetch(path, self.stop, **kwargs)
@@ -407,7 +416,7 @@ class AsyncHTTPTestCase(AsyncTestCase):
 
     def get_url(self, path):
         """Returns an absolute url for the given path on the test server."""
-        return '%s://localhost:%s%s' % (self.get_protocol(),
+        return '%s://127.0.0.1:%s%s' % (self.get_protocol(),
                                         self.get_http_port(), path)
 
     def tearDown(self):
@@ -516,12 +525,17 @@ def gen_test(func=None, timeout=None):
                     timeout=timeout)
             except TimeoutError as e:
                 # run_sync raises an error with an unhelpful traceback.
-                # Throw it back into the generator or coroutine so the stack
-                # trace is replaced by the point where the test is stopped.
-                self._test_generator.throw(e)
-                # In case the test contains an overly broad except clause,
-                # we may get back here.  In this case re-raise the original
-                # exception, which is better than nothing.
+                # If the underlying generator is still running, we can throw the
+                # exception back into it so the stack trace is replaced by the
+                # point where the test is stopped. The only reason the generator
+                # would not be running would be if it were cancelled, which means
+                # a native coroutine, so we can rely on the cr_running attribute.
+                if getattr(self._test_generator, 'cr_running', True):
+                    self._test_generator.throw(e)
+                    # In case the test contains an overly broad except
+                    # clause, we may get back here.
+                # Coroutine was stopped or didn't raise a useful stack trace,
+                # so re-raise the original exception which is better than nothing.
                 raise
         return post_coroutine
 

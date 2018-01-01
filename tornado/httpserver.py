@@ -77,7 +77,7 @@ class HTTPServer(TCPServer, Configurable,
        ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
        ssl_ctx.load_cert_chain(os.path.join(data_dir, "mydomain.crt"),
                                os.path.join(data_dir, "mydomain.key"))
-       HTTPServer(applicaton, ssl_options=ssl_ctx)
+       HTTPServer(application, ssl_options=ssl_ctx)
 
     `HTTPServer` initialization follows one of three patterns (the
     initialization methods are defined on `tornado.tcpserver.TCPServer`):
@@ -287,6 +287,10 @@ class _HTTPRequestContext(object):
         proto_header = headers.get(
             "X-Scheme", headers.get("X-Forwarded-Proto",
                                     self.protocol))
+        if proto_header:
+            # use only the last proto entry if there is more than one
+            # TODO: support trusting mutiple layers of proxied protocol
+            proto_header = proto_header.split(',')[-1].strip()
         if proto_header in ("http", "https"):
             self.protocol = proto_header
 

@@ -261,6 +261,7 @@ class CurlAsyncHTTPClient(AsyncHTTPClient):
             queue=info["curl_start_time"] - info["request"].start_time,
             namelookup=curl.getinfo(pycurl.NAMELOOKUP_TIME),
             connect=curl.getinfo(pycurl.CONNECT_TIME),
+            appconnect=curl.getinfo(pycurl.APPCONNECT_TIME),
             pretransfer=curl.getinfo(pycurl.PRETRANSFER_TIME),
             starttransfer=curl.getinfo(pycurl.STARTTRANSFER_TIME),
             total=curl.getinfo(pycurl.TOTAL_TIME),
@@ -499,6 +500,7 @@ class CurlAsyncHTTPClient(AsyncHTTPClient):
 
     def _curl_debug(self, debug_type, debug_msg):
         debug_types = ('I', '<', '>', '<', '>')
+        debug_msg = native_str(debug_msg)
         if debug_type == 0:
             curl_log.debug('%s', debug_msg.strip())
         elif debug_type in (1, 2):

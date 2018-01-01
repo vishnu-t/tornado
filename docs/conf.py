@@ -39,9 +39,6 @@ coverage_ignore_modules = [
     ]
 # I wish this could go in a per-module file...
 coverage_ignore_classes = [
-    # tornado.concurrent
-    "TracebackFuture",
-
     # tornado.gen
     "Runner",
 
@@ -82,7 +79,7 @@ latex_documents = [
     ]
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.5/', None),
+    'python': ('https://docs.python.org/3.6/', None),
     }
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'

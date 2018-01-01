@@ -28,7 +28,7 @@ import tornado.escape
 import tornado.web
 import zlib
 
-from tornado.concurrent import TracebackFuture
+from tornado.concurrent import Future, future_set_result_unless_cancelled
 from tornado.escape import utf8, native_str, to_unicode
 from tornado import gen, httpclient, httputil
 from tornado.ioloop import IOLoop, PeriodicCallback
@@ -616,6 +616,14 @@ class WebSocketProtocol13(WebSocketProtocol):
     def accept_connection(self):
         try:
             self._handle_websocket_headers()
+        except ValueError:
+            self.handler.set_status(400)
+            log_msg = "Missing/Invalid WebSocket headers"
+            self.handler.finish(log_msg)
+            gen_log.debug(log_msg)
+            return
+
+        try:
             self._accept_connection()
         except ValueError:
             gen_log.debug("Malformed WebSocket request received",
@@ -1044,7 +1052,7 @@ class WebSocketClientConnection(simple_httpclient._HTTPConnection):
                  compression_options=None, ping_interval=None, ping_timeout=None,
                  max_message_size=None):
         self.compression_options = compression_options
-        self.connect_future = TracebackFuture()
+        self.connect_future = Future()
         self.protocol = None
         self.read_future = None
         self.read_queue = collections.deque()
@@ -1132,7 +1140,7 @@ class WebSocketClientConnection(simple_httpclient._HTTPConnection):
         # ability to see exceptions.
         self.final_callback = None
 
-        self.connect_future.set_result(self)
+        future_set_result_unless_cancelled(self.connect_future, self)
 
     def write_message(self, message, binary=False):
         """Sends a message to the WebSocket server."""
@@ -1150,9 +1158,9 @@ class WebSocketClientConnection(simple_httpclient._HTTPConnection):
         ready.
         """
         assert self.read_future is None
-        future = TracebackFuture()
+        future = Future()
         if self.read_queue:
-            future.set_result(self.read_queue.popleft())
+            future_set_result_unless_cancelled(future, self.read_queue.popleft())
         else:
             self.read_future = future
         if callback is not None:
@@ -1163,7 +1171,7 @@ class WebSocketClientConnection(simple_httpclient._HTTPConnection):
         if self._on_message_callback:
             self._on_message_callback(message)
         elif self.read_future is not None:
-            self.read_future.set_result(message)
+            future_set_result_unless_cancelled(self.read_future, message)
             self.read_future = None
         else:
             self.read_queue.append(message)

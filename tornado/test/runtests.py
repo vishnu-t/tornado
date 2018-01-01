@@ -118,20 +118,16 @@ def main():
     # 2.7 and 3.2
     warnings.filterwarnings("ignore", category=DeprecationWarning,
                             message="Please use assert.* instead")
-    # unittest2 0.6 on py26 reports these as PendingDeprecationWarnings
-    # instead of DeprecationWarnings.
-    warnings.filterwarnings("ignore", category=PendingDeprecationWarning,
-                            message="Please use assert.* instead")
     # Twisted 15.0.0 triggers some warnings on py3 with -bb.
     warnings.filterwarnings("ignore", category=BytesWarning,
                             module=r"twisted\..*")
-    # The __aiter__ protocol changed in python 3.5.2.
-    # Silence the warning until we can drop 3.5.[01].
-    warnings.filterwarnings("ignore", category=PendingDeprecationWarning,
-                            message=".*legacy __aiter__ protocol")
-    # 3.5.2's PendingDeprecationWarning became a DeprecationWarning in 3.6.
-    warnings.filterwarnings("ignore", category=DeprecationWarning,
-                            message=".*legacy __aiter__ protocol")
+    if (3,) < sys.version_info < (3, 6):
+        # Prior to 3.6, async ResourceWarnings were rather noisy
+        # and even
+        # `python3.4 -W error -c 'import asyncio; asyncio.get_event_loop()'`
+        # would generate a warning.
+        warnings.filterwarnings("ignore", category=ResourceWarning,
+                                module=r"asyncio\..*")
 
     logging.getLogger("tornado.access").setLevel(logging.CRITICAL)
 
